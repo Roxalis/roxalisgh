@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import time
 import tweepy
 import urllib.request
@@ -40,14 +42,21 @@ def download_image(url, it, path):
 	"""
     try:
         print("Retrieving image " + str(it) + " ...")
-        response = requests.get(url)
+        session = requests.Session()
+        retry = Retry(connect=3, backoff_factor=1)
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        response = session.get(url)
         soup = BeautifulSoup(response.text, "html.parser")
         tag = soup.findAll('img')[0]
         link = tag['src']
+        print("Image: " + link)
         urllib.request.urlretrieve(link, path + '/images/img_' + str(it) + '.jpg')
         return path + '/images/img_' + str(it) + '.jpg'
-    except:
-        print("Image retrieval number " + str(it) + "failed!")
+    except Exception as e:
+        print(e)
+        print("Image retrieval number " + str(it) + " failed!")
 
 
 def send_tweet(message, media, it, api):
@@ -67,7 +76,8 @@ def send_tweet(message, media, it, api):
         response = api.media_upload(media)
         media_list.append(response.media_id_string)
         api.update_status(message, media_ids=media_list)
-    except:
+    except Exception as e:
+        print(e)
         print("Sending tweet " + str(it) + " failed!")
 
 
@@ -82,15 +92,16 @@ def main(path):
 	"""
     api_auth = get_api_auth()
     print("Reading data file...")
-    df = pd.read_csv(path + 'data file', sep=',', header=None)
+    df = pd.read_csv(path + '...', sep=',', header=None)
     df_sample = df.sample(4)
     i = 1
     for num, tweet, source in df_sample.values:
         media_location = download_image(source, i, path)
         send_tweet(tweet, media_location, i, api_auth)
-        time.sleep(1)
+        time.sleep(2)
         i += 1
     print("Done.")
+
 
 if __name__ == "__main__":
     project_path = '...'
