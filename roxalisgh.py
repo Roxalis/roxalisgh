@@ -48,7 +48,7 @@ def download_image(url, it, path):
         session.mount('http://', adapter)
         session.mount('https://', adapter)
         response = session.get(url)
-        soup = BeautifulSoup(response.text, "html.parser")
+        soup = BeautifulSoup(response.text, "html.parser", from_encoding="utf-8")
         tag = soup.findAll('img')[0]
         link = tag['src']
         print("Image: " + link)
