@@ -6,13 +6,13 @@ from requests.packages.urllib3.util.retry import Retry
 import time
 import tweepy
 import urllib.request
+import urllib.parse
 
 
 def get_api_auth():
     """
     Function to authenticate with the Twitter Api
-
-    Returns authentication environment
+    :returns: authentication environment
     """
     try:
         print("Authenticating with Twitter...")
@@ -33,15 +33,13 @@ def get_api_auth():
 def download_image(url, it, path):
     """
     With provided parameters this function downloads image files from Wikiart.org
-
-	url: url to Wikiart.org image
-	it: integer value
-	path: path to project folder
-
-    Returns image location path
-	"""
+    :param url: url to Wikiart.org image
+	:param it: integer value
+	:param path: path to project folder
+    :returns: image location path
+    """
     try:
-        print("Retrieving image " + str(it) + " ...")
+        print("Retrieving image " + str(it) + " from: " + url)
         session = requests.Session()
         retry = Retry(connect=3, backoff_factor=1)
         adapter = HTTPAdapter(max_retries=retry)
@@ -52,8 +50,16 @@ def download_image(url, it, path):
         tag = soup.findAll('img')[0]
         link = tag['src']
         print("Image: " + link)
-        urllib.request.urlretrieve(link, path + '/images/img_' + str(it) + '.jpg')
-        return path + '/images/img_' + str(it) + '.jpg'
+        # If image dummy then return None
+        if link == "https://uploads.wikiart.org/Content/images/FRAME-600x480.jpg":
+            print("Dummy Image")
+            image_path = None
+        else:
+            image_path = path + '/images/img_' + str(it) + '.jpg'
+            url = urllib.parse.urlparse(link)
+            url = url.scheme + "://" + url.netloc + urllib.parse.quote(url.path)
+            urllib.request.urlretrieve(url, image_path)
+        return image_path
     except Exception as e:
         print(e)
         print("Image retrieval number " + str(it) + " failed!")
@@ -62,14 +68,12 @@ def download_image(url, it, path):
 def send_tweet(message, media, it, api):
     """
     This function sends out a tweet with the downloaded image (download_image())
-
-	message: a tweet
-	media: the image location path
-	it: integer value
-	api: authentication environment (get_api_auth())
-
-	Returns none (void function)
-	"""
+    :param message: a tweet
+	:param media: the image location path
+	:param it: integer value
+	:param api: authentication environment (get_api_auth())
+    :returns: none (void function)
+    """
     try:
         print("Sending tweet " + str(it) + " ...")
         media_list = []
@@ -85,19 +89,18 @@ def main(path):
     """
     Main function to authenticate with Twitter, load the artwork data file, chooses 4 artworks
 	randomly, downloads required images, and tweets the artwork with artwork information.
-
-	path: path to project folder
-
-	Returns none (void function)
-	"""
+	:param path: path to project folder
+    :returns: none (void function)
+    """
     api_auth = get_api_auth()
     print("Reading data file...")
-    df = pd.read_csv(path + '...', sep=',', header=None)
+    df = pd.read_csv(path + '/artset.csv', sep=',', header=None)
     df_sample = df.sample(4)
     i = 1
     for num, tweet, source in df_sample.values:
         media_location = download_image(source, i, path)
-        send_tweet(tweet, media_location, i, api_auth)
+        if media_location is not None:
+            send_tweet(tweet, media_location, i, api_auth)
         time.sleep(2)
         i += 1
     print("Done.")
