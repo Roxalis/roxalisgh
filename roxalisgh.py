@@ -1,9 +1,9 @@
 from bs4 import BeautifulSoup
-import pandas as pd
-import requests
+from pandas import read_csv
+from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-import time
+from time import sleep
 import tweepy
 import urllib.request
 import urllib.parse
@@ -25,8 +25,8 @@ def get_api_auth():
         auth.set_access_token(access_token, access_secret)
 
         return tweepy.API(auth)
-
-    except:
+    except Exception as e:
+        print(e)
         print("Authentication failed!")
 
 
@@ -34,13 +34,13 @@ def download_image(url, it, path):
     """
     With provided parameters this function downloads image files from Wikiart.org
     :param url: url to Wikiart.org image
-	:param it: integer value
-	:param path: path to project folder
+    :param it: integer value
+    :param path: path to project folder
     :returns: image location path
     """
     try:
         print("Retrieving image " + str(it) + " from: " + url)
-        session = requests.Session()
+        session = Session()
         retry = Retry(connect=3, backoff_factor=1)
         adapter = HTTPAdapter(max_retries=retry)
         session.mount('http://', adapter)
@@ -69,9 +69,9 @@ def send_tweet(message, media, it, api):
     """
     This function sends out a tweet with the downloaded image (download_image())
     :param message: a tweet
-	:param media: the image location path
-	:param it: integer value
-	:param api: authentication environment (get_api_auth())
+    :param media: the image location path
+    :param it: integer value
+    :param api: authentication environment (get_api_auth())
     :returns: none (void function)
     """
     try:
@@ -88,20 +88,20 @@ def send_tweet(message, media, it, api):
 def main(path):
     """
     Main function to authenticate with Twitter, load the artwork data file, chooses 4 artworks
-	randomly, downloads required images, and tweets the artwork with artwork information.
-	:param path: path to project folder
+    randomly, downloads required images, and tweets the artwork with artwork information.
+    :param path: path to project folder
     :returns: none (void function)
     """
     api_auth = get_api_auth()
     print("Reading data file...")
-    df = pd.read_csv(path + '/artset.csv', sep=',', header=None)
+    df = read_csv(path + '/artset.csv', sep=',', header=None)
     df_sample = df.sample(4)
     i = 1
     for num, tweet, source in df_sample.values:
         media_location = download_image(source, i, path)
         if media_location is not None:
             send_tweet(tweet, media_location, i, api_auth)
-        time.sleep(2)
+        sleep(2)
         i += 1
     print("Done.")
 
